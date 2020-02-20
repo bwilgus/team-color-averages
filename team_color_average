@@ -1,0 +1,77 @@
+import requests, pandas as pd, math
+from bs4 import BeautifulSoup as bs
+from pprint import pprint as pp
+
+r = requests.get('https://teamcolorcodes.com/nfl-team-color-codes/')
+
+soup = bs(r.content,'html.parser')
+colorTypes = ['primary','secondary','tertiary']
+colorType = []
+red = []
+green = []
+blue = []
+
+teams = soup.find_all('a',{'class':'team-button'})
+name = []
+link = []
+
+
+for t in teams:
+    name.append(t.text)
+    link.append(t['href'])
+
+teamName = []
+
+for l in range(len(link)):
+    req = requests.get(link[l])
+    req_soup = bs(req.content,'html.parser')
+    colors = req_soup.find_all('div',{'class':'colorblock'})
+    if len(colors)<3:
+        length = len(colors)
+    else:
+        length = 3
+
+    for c in range(0,length):
+        for g in list(colors[c]):
+            if str(g).find('RGB:')>-1:        
+                a = g
+        try:
+            color = a[a.find('(')+1:a.find(')')].split(',')
+        except:
+            color = str(a)[str(a).find('(')+1:str(a).find(')')].split(',')
+        if len(color) == 1:
+            color = a[a.find('(')+1:a.find(')')].split(' ')
+        teamName.append(name[l])
+        red.append(int(color[0]))
+        green.append(int(color[1]))
+        blue.append(int(color[2]))
+        colorType.append(colorTypes[c])
+
+data = {'team':teamName
+        ,'colorType':colorType
+        ,'red':red
+        ,'green':green
+        ,'blue':blue
+        }
+
+df = pd.DataFrame(data)
+
+df['red_sq'] = df.red * df.red
+df['green_sq'] = df.green * df.green
+df['blue_sq'] = df.blue * df.blue
+
+red_sum = sum(df.red_sq)
+green_sum = sum(df.green_sq)
+blue_sum = sum(df.blue_sq)
+
+color_avg = []
+
+for t in colorTypes:
+    n = len(df[df.colorType==t])
+    r = int(math.sqrt(sum(df.red_sq[df.colorType==t])/n))
+    b = int(math.sqrt(sum(df.blue_sq[df.colorType==t])/n))
+    g = int(math.sqrt(sum(df.green_sq[df.colorType==t])/n))
+
+    color_avg.append([r,g,b])
+    
+
